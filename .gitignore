@@ -1,16 +1,10 @@
-# 操作系统文件
-.DS_Store
+# 排除特定图片文件
+小星.png
+
+# Windows系统文件
 Thumbs.db
 desktop.ini
 
-# IDE/编辑器
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# 临时文件
-*.tmp
-*.log
+# macOS系统文件
+.DS_Store
 
