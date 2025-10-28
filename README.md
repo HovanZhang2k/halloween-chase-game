@@ -36,32 +36,7 @@
 
 ## 🚀 快速开始
 
-1. 克隆仓库：
-```bash
-git clone https://github.com/HovanZhang2k/halloween-chase-game.git
-cd halloween-chase-game
-```
-
-2. 直接在浏览器中打开 `index.html` 即可开始游戏！
-
-> 注意：无需服务器，直接双击 `index.html` 文件即可运行
-
-## 📁 项目结构
-
-```
-halloween-chase-game/
-├── index.html                          # 主游戏文件
-├── 小星.png                            # 玩家角色图片
-├── bat-svgrepo-com.svg                # 蝙蝠SVG
-├── cat-5-svgrepo-com.svg              # 黑猫SVG
-├── ghost-svgrepo-com.svg              # 幽灵SVG
-├── spider-svgrepo-up.svg              # 蜘蛛（朝上）SVG
-├── spider-svgrepo-down.svg            # 蜘蛛（朝下）SVG
-├── spider-web-svgrepo-com.svg         # 蛛网SVG
-├── skull-and-crossbones-svgrepo-com.svg # 骷髅头SVG
-├── halloween-candy-sweet-svgrepo-com.svg # 糖果1 SVG
-└── candies-halloween-svgrepo-com.svg  # 糖果2 SVG
-```
+直接双击 `index.html` 即可开始游戏！
 
 ## 🎨 技术栈
 
@@ -77,7 +52,7 @@ halloween-chase-game/
 
 ## 🌟 特别说明
 
-- 游戏会在鼠标第一次移动时自动启动音效
+- 游戏会在鼠标第一次点击时自动启动音效
 - 音效基于 Web Audio API 动态生成，无需外部音频文件
 - 支持触摸屏设备
 - 响应式全屏设计，适配各种屏幕尺寸
@@ -90,10 +65,6 @@ halloween-chase-game/
 - ✅ 丰富的万圣节主题装饰
 - ✅ 流畅的动画效果
 - ✅ 游戏状态管理
-
-## 📄 许可证
-
-MIT License
 
 ## 👨‍💻 作者
 
