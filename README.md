@@ -1,0 +1,105 @@
+# 🎃 万圣节追捕游戏
+
+一个有趣的万圣节主题互动游戏，南瓜会追捕你的鼠标光标！
+
+## 🎮 游戏玩法
+
+- 移动鼠标控制"小星"角色
+- 躲避追逐你的饥饿南瓜
+- 如果被南瓜咬住1.5秒，游戏结束！
+- 配有动态音效和万圣节主题背景装饰
+
+## ✨ 特色功能
+
+### 游戏机制
+- 🎯 智能追踪系统：南瓜会追逐鼠标位置
+- 💀 碰撞检测：120像素碰撞半径
+- ⏱️ 倒计时系统：被咬住时显示实时倒计时
+- 🎭 动画效果：南瓜张嘴、咬合动画
+
+### 视觉效果
+- 🌙 全屏万圣节场景
+- 🐈‍⬛ 动态背景装饰：
+  - 移动的黑猫
+  - 飘动的幽灵（3个，不同移动路径）
+  - 摇摆的蜘蛛和蛛网
+  - 散落的糖果和骷髅头
+- 🌫️ 大气的紫色渐变背景
+- ⭐ 闪烁的星星效果
+
+### 音效系统
+- 🎵 俏皮的万圣节背景音乐（木琴音色）
+- 🎻 紧张的追逐音效（拨弦小提琴）
+- 🥁 被咬时的音效（小军鼓滚奏）
+- 🎹 减七和弦的紧张氛围
+- 🔊 可随时开关音效
+
+## 🚀 快速开始
+
+1. 克隆仓库：
+```bash
+git clone https://github.com/HovanZhang2k/halloween-chase-game.git
+cd halloween-chase-game
+```
+
+2. 直接在浏览器中打开 `index.html` 即可开始游戏！
+
+> 注意：无需服务器，直接双击 `index.html` 文件即可运行
+
+## 📁 项目结构
+
+```
+halloween-chase-game/
+├── index.html                          # 主游戏文件
+├── 小星.png                            # 玩家角色图片
+├── bat-svgrepo-com.svg                # 蝙蝠SVG
+├── cat-5-svgrepo-com.svg              # 黑猫SVG
+├── ghost-svgrepo-com.svg              # 幽灵SVG
+├── spider-svgrepo-up.svg              # 蜘蛛（朝上）SVG
+├── spider-svgrepo-down.svg            # 蜘蛛（朝下）SVG
+├── spider-web-svgrepo-com.svg         # 蛛网SVG
+├── skull-and-crossbones-svgrepo-com.svg # 骷髅头SVG
+├── halloween-candy-sweet-svgrepo-com.svg # 糖果1 SVG
+└── candies-halloween-svgrepo-com.svg  # 糖果2 SVG
+```
+
+## 🎨 技术栈
+
+- **纯原生技术**：HTML5 + CSS3 + JavaScript
+- **SVG动画**：使用 `animateTransform` 实现动态效果
+- **Web Audio API**：合成式音效系统
+- **Canvas 2D**：游戏逻辑和碰撞检测
+
+## 🎯 游戏控制
+
+- **鼠标移动**：控制角色移动
+- **右下角按钮**：开关音效（🔊/🔇）
+
+## 🌟 特别说明
+
+- 游戏会在鼠标第一次移动时自动启动音效
+- 音效基于 Web Audio API 动态生成，无需外部音频文件
+- 支持触摸屏设备
+- 响应式全屏设计，适配各种屏幕尺寸
+
+## 📝 开发日志
+
+### v1.0.0 (2025-10-28)
+- ✅ 完整的游戏逻辑和碰撞检测
+- ✅ 动态音效系统
+- ✅ 丰富的万圣节主题装饰
+- ✅ 流畅的动画效果
+- ✅ 游戏状态管理
+
+## 📄 许可证
+
+MIT License
+
+## 👨‍💻 作者
+
+HovanZhang2k - [@HovanZhang2k](https://github.com/HovanZhang2k)
+
+---
+
+🎃 **Happy Halloween! 祝你游戏愉快！** 🎃
+

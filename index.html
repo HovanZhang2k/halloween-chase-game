@@ -1,0 +1,842 @@
+<!doctype html>
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>南瓜追逐</title>
+<style>
+  :root{
+    --sky-top:#2a1f3e; --sky-mid:#3a2760; --sky-bottom:#1b1b24;
+    --moon:#F5F0C8; --pumpkin-outer:#FF7A00; --pumpkin-inner:#FF9A2E;
+    --pumpkin-ribs:#F45E00; --stem:#2F6B2B; --leaf:#3F873E; --cut:#0a0705;
+  }
+  * {margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto;}
+  svg{width:100vw;height:100vh;display:block;cursor:none;background:#000;position:fixed;top:0;left:0;}
+  .hud{position:fixed;left:12px;bottom:12px;font-size:12px;opacity:.75;user-select:none;z-index:10;}
+  /* 状态提示框 */
+  #statusOverlay{
+    position:fixed;
+    top:40px;
+    left:50%;
+    transform:translateX(-50%);
+    background:rgba(255,122,0,0.95);
+    color:#FFF;
+    padding:20px 50px;
+    border-radius:15px;
+    font-size:28px;
+    font-weight:bold;
+    text-align:center;
+    z-index:1000;
+    display:none;
+    border:3px solid #FFD700;
+    box-shadow:0 0 30px rgba(255,122,0,0.8), inset 0 0 20px rgba(255,200,0,0.3);
+    animation:pulse 0.8s ease-in-out infinite;
+  }
+  #statusOverlay.show{display:block;}
+  #statusOverlay.gameover{
+    background:rgba(200,0,0,0.95);
+    color:#FFD700;
+    font-size:48px;
+    top:50%;
+    transform:translate(-50%, -50%);
+    padding:40px 80px;
+    animation:shake 0.5s ease-in-out;
+    border-color:#FF4444;
+    box-shadow:0 0 50px rgba(200,0,0,0.9), inset 0 0 30px rgba(255,100,100,0.4);
+  }
+  @keyframes pulse {
+    0%, 100% { transform:translateX(-50%) scale(1); opacity:1; }
+    50% { transform:translateX(-50%) scale(1.05); opacity:0.9; }
+  }
+  @keyframes shake {
+    0%, 100% { transform:translate(-50%, -50%) rotate(0deg); }
+    25% { transform:translate(-50%, -50%) rotate(-2deg); }
+    75% { transform:translate(-50%, -50%) rotate(2deg); }
+  }
+  /* 音效控制按钮 */
+  #soundToggle{
+    position:fixed;
+    bottom:20px;
+    right:20px;
+    width:50px;
+    height:50px;
+    background:rgba(255,122,0,0.9);
+    border:2px solid #FFD700;
+    border-radius:50%;
+    cursor:pointer;
+    z-index:1000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:24px;
+    transition:all 0.3s;
+    box-shadow:0 4px 12px rgba(255,122,0,0.5);
+  }
+  #soundToggle:hover{
+    background:rgba(255,154,46,1);
+    transform:scale(1.1);
+    box-shadow:0 6px 16px rgba(255,122,0,0.7);
+  }
+  #soundToggle.muted{
+    background:rgba(100,100,100,0.8);
+    border-color:#999;
+  }
+  @media (prefers-reduced-motion: reduce){
+    .bat,[data-anim],#decorations *{animation:none !important; transition:none !important;}
+    #statusOverlay{animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<svg id="stage" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-label="万圣节南瓜追逐场景">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="var(--sky-top)"/>
+      <stop offset="55%" stop-color="var(--sky-mid)"/>
+      <stop offset="100%" stop-color="var(--sky-bottom)"/>
+    </linearGradient>
+    <radialGradient id="moonGrad" cx="50%" cy="50%">
+      <stop offset="0%" stop-color="#FFFBE8"/>
+      <stop offset="70%" stop-color="var(--moon)"/>
+      <stop offset="100%" stop-color="#D7D2A1"/>
+    </radialGradient>
+    <radialGradient id="pumpkinGrad" cx="40%" cy="35%" r="80%">
+      <stop offset="0%" stop-color="#FFC27A"/>
+      <stop offset="35%" stop-color="var(--pumpkin-inner)"/>
+      <stop offset="100%" stop-color="var(--pumpkin-outer)"/>
+    </radialGradient>
+    <radialGradient id="carveGlow" cx="50%" cy="50%">
+      <stop offset="0%" stop-color="#FFDF7A"/>
+      <stop offset="55%" stop-color="#FFAE00"/>
+      <stop offset="100%" stop-color="#ff9900"/>
+    </radialGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="3" result="b1"/>
+      <feMerge><feMergeNode in="b1"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <!-- 聚光灯效果 -->
+    <radialGradient id="spotlight" cx="50%" cy="50%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.4"/>
+      <stop offset="40%" stop-color="#FFFFE0" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="godray" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF4"/><stop offset="100%" stop-color="#FFF0"/>
+    </linearGradient>
+    <linearGradient id="fogGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#CCC3"/><stop offset="50%" stop-color="#FFF4"/><stop offset="100%" stop-color="#CCC3"/>
+    </linearGradient>
+    <filter id="soften" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="0.7"/></filter>
+    <path id="batPath" d="M0,0 c6,-6 12,-6 18,0 c2,-6 10,-6 12,0 c6,-6 12,-6 18,0 c-4,10 -12,12 -18,4 c-3,5 -11,5 -12,0 c-6,8 -14,6 -18,-4z"/>
+    
+    <!-- 万圣节装饰图标 -->
+    <symbol id="icon-cat" viewBox="0 0 512 512">
+      <path fill="#4a4060" stroke="#6a5a80" stroke-width="8" d="M504.302,195.59c-10.618-6.362-29.71-43.514-33.959-47.755c-4.249-4.256-28.662-13.81-28.662-13.81l-13.795-43.514c-26.542,3.185-42.449,45.634-43.513,48.819c0,0-2.661,73.764-120.47,45.11c-84.437-20.54-135.22-40.407-177.872-0.36c-2.668-4.578-4.491-9.234-5.822-14.257c-2.378-9.062-2.918-19.46-2.91-31.308c0-5.806,0.109-11.924,0.117-18.34c-0.008-13.436-0.493-28.248-4.046-44.015C69.85,60.386,63.136,43.743,51.344,27.162c-5.086-7.168-15.024-8.858-22.199-3.764c-7.167,5.094-8.858,15.031-3.764,22.199c9.304,13.145,14.162,25.368,16.932,37.551c2.739,12.167,3.271,24.397,3.264,37.027c0,6.024-0.118,12.136-0.118,18.34c0.016,12.646,0.438,25.799,3.928,39.32c2.746,10.735,7.722,21.58,15.508,31.706C31.93,261.458,50.037,316.584,50.037,316.584l-34.093,54.241c-0.618,0.978-1.033,2.066-1.244,3.192L0.146,454.073c-0.641,3.521,0.862,7.08,3.819,9.084l40.979,27.763c0.876,0.602,1.964,0.775,2.981,0.493c1.026-0.274,1.863-0.994,2.308-1.949l8.326-17.825c0.618-1.338,0.368-2.918-0.634-3.998l-10.728-11.448c-2.182-2.324-2.973-5.634-2.081-8.701l17.84-61.033c0.579-1.948,1.784-3.646,3.435-4.82l23.983-17.058c3.255-2.332,7.66-2.222,10.806,0.251c3.146,2.472,4.288,6.721,2.809,10.438L93.41,401.858c-1.22,3.051-0.681,6.525,1.401,9.06l60.298,73.365h45.218c1.996,0,3.616-1.62,3.616-3.607v-22.504c0-1.996-1.62-3.615-3.616-3.615h-14.303c-3.342,0-6.409-1.854-7.982-4.804l-24.484-41.049c-1.643-3.106-1.33-6.87,0.783-9.663l21.948-28.999c1.706-2.245,4.367-3.575,7.192-3.575h61.197c2.872,0,5.579,1.376,7.277,3.701c1.698,2.324,2.191,5.313,1.33,8.059l-19.726,62.16c-0.626,1.957-0.564,4.077,0.18,5.994l12.653,32.598h39.272v-8.49l-6.494-20.415c-0.61-1.909-0.563-3.967,0.133-5.852l26.471-71.847c1.315-3.553,4.694-5.908,8.474-5.908h27.011c2.449,0,4.796,1.002,6.502,2.777l74.813,103.365c0,0,38.208,0,50.947,0c12.738,0,7.809-25.414-4.241-26.542c-22.826-2.12-52.004-65.798-64.742-88.09c-12.739-22.285,24.664-91.299,53.067-94.453c28.654-3.185,43.514-14.867,47.763-30.79C513.856,223.187,514.92,201.959,504.302,195.59z"/>
+    </symbol>
+    
+    <symbol id="icon-ghost" viewBox="0 0 512 512">
+      <path fill="#E0F7FA" d="M481.558,219.764c-10.282,31.331-29.746,60.297-58.4,82.723c-14.18,11.096-29.806,19.55-46.186,25.519c-7.908,2.884-17.03-0.061-21.084-7.432c-2.685-4.885-4.218-10.481-4.218-16.458c0-3.993,0.676-7.822,1.914-11.391l-53.991,0.017c0.398,4.981-0.286,10.126-2.191,15.098c-2.841,7.415-7.952,13.253-14.241,17.064c-9.381,5.682-21.127,5.327-31.296,1.221c-14.492-5.838-28.316-13.712-40.998-23.639c-32.561-25.475-53.255-59.413-62.099-95.647c-3.118-12.777-22.244-10.247-22.201,2.902c0.191,55.723,24.678,111.36,73.585,149.673c10.984,8.61,22.807,15.67,35.099,21.499c-13.522-1.403-27-4.149-40.244-8.324c-14.656-4.617-29.009-10.975-42.791-19.187c-76.391-45.493-112.131-133.145-95.283-215.6c1.958-9.563-10.793-14.778-15.834-6.419C18.3,169.177,5.177,213.449,5.177,260.805c0,138.732,112.469,251.201,251.201,251.201c76.547,0,139.408-58.417,146.537-133.093c10.802-5.448,21.214-11.858,30.967-19.498c44.367-34.77,68.639-83.78,72.892-134.185C508.073,209.751,486.4,205.013,481.558,219.764z"/>
+      <path fill="#E0F7FA" d="M392.806,281.274c32.769-64.879,50.838-134.081,39.776-201.1c-17.645-106.899-170.202-106.899-187.847,0c-11.062,67.019,7.008,136.22,39.776,201.1C306.913,325.607,370.415,325.607,392.806,281.274z"/>
+      <path fill="#263238" d="M394.963,178.507c0,11.962-7.753,21.655-17.324,21.655s-17.324-9.693-17.324-21.655s7.753-21.655,17.324-21.655S394.963,166.544,394.963,178.507z M299.68,156.851c-9.572,0-17.324,9.693-17.324,21.655s7.753,21.655,17.324,21.655s17.324-9.693,17.324-21.655S309.251,156.851,299.68,156.851z M338.659,226.148c-11.962,0-21.655,32.838-21.655,51.973c0,19.135,9.693,17.324,21.655,17.324s21.655,1.81,21.655-17.324C360.315,258.986,350.622,226.148,338.659,226.148z"/>
+    </symbol>
+    
+    <symbol id="icon-spider-up" viewBox="0 0 1024 1024">
+      <path fill="#4a4a4a" d="M951.3 571.7c10.1 5.2 14.1 17.6 8.9 27.8a20.74 20.74 0 0 1-18.4 11.2c-3.2 0-6.4-0.7-9.4-2.3l-139.8-71.9L657 553.6v3.2c7.5 9.3 14.3 19.4 20.2 30.1L834 639.3c8.4 2.8 14.1 10.7 14.1 19.6v184.8c0 11.4-9.2 20.6-20.6 20.6-11.4 0-20.6-9.2-20.6-20.6v-170l-109.3-36.5c5.2 19.1 8 39.4 8 60.4 0 51.8-17.1 101.7-48.1 140.4-36.5 45.6-89 71.7-144 71.7s-107.6-26.1-144-71.7c-31-38.8-48.1-88.6-48.1-140.4 0-20.7 2.7-40.8 7.8-59.8l-107.6 35.9v169.9c0 11.4-9.2 20.6-20.6 20.6-11.4 0-20.6-9.2-20.6-20.6V658.8c0-8.9 5.7-16.7 14.1-19.6l154.8-51.7c6-10.9 13-21.2 20.6-30.8v-3.2L234 536.4 94.2 608.3c-3 1.6-6.2 2.3-9.4 2.3-7.5 0-14.7-4.1-18.4-11.2-5.2-10.1-1.2-22.6 8.9-27.8l145.5-74.9c3.7-1.9 7.9-2.6 12-2.1L369.7 512v-19.2l-94.4-62.1H84.8c-11.4 0-20.6-9.2-20.6-20.6 0-11.4 9.2-20.6 20.6-20.6h196.8c4 0 8 1.2 11.3 3.4l76.9 50.6v-24c0-6.6 0.6-13.1 1.8-19.4l-120-118.8c-3.9-3.9-6.1-9.2-6.1-14.7V135.9c0-11.4 9.2-20.6 20.6-20.6 11.4 0 20.6 9.2 20.6 20.6v122.2l102.1 101c8.5-12.1 19.4-22.4 32-30v-28.2c0-28.9 16-54.2 39.5-67.4V205c0-11.4 9.2-20.6 20.6-20.6 11.4 0 20.6 9.2 20.6 20.6v18.5H525V205c0-11.4 9.2-20.6 20.6-20.6 11.4 0 20.6 9.2 20.6 20.6v28.4c23.6 13.3 39.5 38.5 39.5 67.4V329c12.7 7.7 23.7 18.1 32.2 30.3L740.3 258V135.9c0-11.4 9.2-20.6 20.6-20.6 11.4 0 20.6 9.2 20.6 20.6v130.8c0 5.5-2.2 10.8-6.1 14.7L655.3 400.5c1.1 6.2 1.8 12.6 1.8 19.1v23.8l76.7-50.4c3.4-2.2 7.3-3.4 11.3-3.4h196.8c11.4 0 20.6 9.2 20.6 20.6 0 11.4-9.2 20.6-20.6 20.6H751.2L657 492.7V512l136.7-17.4c4.1-0.5 8.3 0.2 12 2.1l145.6 75z"/>
+      <ellipse cx="400" cy="450" rx="20" ry="25" fill="#FFE62E"/>
+      <ellipse cx="620" cy="450" rx="20" ry="25" fill="#FFE62E"/>
+    </symbol>
+    
+    <symbol id="icon-spider-down" viewBox="0 0 64 64">
+      <path fill="#5b4c52" d="M49.7 32.7c0 6.7-7.9 11.2-17.7 11.2s-17.7-4.5-17.7-11.2C14.3 20.6 32 16.5 32 16.5s17.7 4.1 17.7 16.2"/>
+      <ellipse cx="36.9" cy="43.1" rx="4.3" ry="4.4" fill="#ffe62e"/>
+      <ellipse cx="36.9" cy="43.1" rx="2.9" ry="3" fill="#3f3438"/>
+      <ellipse cx="27.1" cy="43.1" rx="4.3" ry="4.4" fill="#ffe62e"/>
+      <path d="M30 43.1c0 1.7-1.3 3-2.9 3c-1.6 0-2.9-1.3-2.9-3s1.3-3 2.9-3c1.6 0 2.9 1.3 2.9 3" fill="#3f3438"/>
+    </symbol>
+    
+    <symbol id="icon-skull" viewBox="0 0 72 72">
+      <path fill="#F5F5F5" stroke="#d0d0d0" stroke-width="1.5" d="M40.5261,16.9202c-1.4058-0.4271-2.8669-0.6444-4.3361-0.6449h-0.0302c-1.0484,0.0035-2.0939,0.1118-3.1208,0.3233c-3.6363,0.783-6.8667,2.8547-9.0952,5.8328c-1.6956,2.2231-2.8175,4.8296-3.2665,7.5892c-0.9016,5.1673,0.5755,10.4656,4.0203,14.4212l0.1114,0.1248c0.8836,0.9967,2.0939,2.3619,2.0939,3.8143l-0.0184,4.1778c0,0.4626-0.375,0.8376-0.8376,0.8376l0,0c1.8614,0.9501,3.8344,1.6637,5.873,2.1241c3.1924,0.7191,6.5139,0.6284,9.6622-0.2638C44.2751,42.5448,43.5639,29.2676,40.5261,16.9202z"/>
+      <path fill="#D0CFCE" d="M46.9804,20.8124c-1.7983-1.809-4.0153-3.1462-6.4543-3.893c3.0379,12.3474,3.749,25.6254,1.0537,38.3321c1.63-0.4557,3.2034-1.0938,4.6904-1.9021c-0.4608,0.002-0.8384-0.3652-0.8493-0.8258l-0.0578-4.1401c0-1.382,1.1726-2.6727,2.0277-3.6158c0.1214-0.1332,0.237-0.2605,0.3409-0.3794c5.9059-6.8616,5.5818-17.1007-0.7463-23.575L46.9804,20.8124z"/>
+      <circle cx="29.3706" cy="39.2003" r="4.1878" fill="#2a2a2a"/>
+      <circle cx="43.0632" cy="39.2003" r="4.1878" fill="#2a2a2a"/>
+    </symbol>
+    
+    <symbol id="icon-candy" viewBox="0 0 100 100">
+      <path fill="#FF6B9D" d="M61.5,61.5c-0.5,0-1-0.2-1.4-0.6l-7.1-7.1c-0.5-0.5-0.7-1.2-0.5-1.9c0.2-0.7,0.7-1.2,1.4-1.4l9.7-2.6c0.7-0.2,1.4,0,1.9,0.5c0.5,0.5,0.7,1.2,0.5,1.9L63.4,60c-0.2,0.7-0.7,1.2-1.4,1.4C61.8,61.5,61.6,61.5,61.5,61.5z"/>
+      <path fill="#FFD700" d="M48,48c-0.5,0-1-0.2-1.4-0.6l-7.1-7.1c-0.5-0.5-0.7-1.2-0.5-1.9c0.2-0.7,0.7-1.2,1.4-1.4l9.7-2.6c0.7-0.2,1.4,0,1.9,0.5c0.5,0.5,0.7,1.2,0.5,1.9l-2.6,9.7c-0.2,0.7-0.7,1.2-1.4,1.4C48.3,48,48.2,48,48,48z"/>
+    </symbol>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="1200" height="800" fill="url(#sky)"/>
+  <g fill="#FFF" opacity=".7" aria-hidden="true">
+    <circle cx="100" cy="120" r="1.4"/><circle cx="360" cy="60" r="1.2"/>
+    <circle cx="890" cy="140" r="1.6"/><circle cx="720" cy="40" r="1.1"/>
+    <circle cx="1080" cy="110" r="1.3"/><circle cx="520" cy="90" r="1.2"/>
+  </g>
+  <g id="moon-group" transform="translate(950,140)">
+    <circle r="80" fill="url(#moonGrad)"/>
+    <g fill="#C9C59A">
+      <circle cx="-20" cy="-10" r="8"/><circle cx="25" cy="20" r="6"/><circle cx="-40" cy="25" r="5"/>
+    </g>
+  </g>
+  <g opacity=".35" filter="url(#soften)"><polygon points="920,0 980,0 1120,800 780,800" fill="url(#godray)"/></g>
+  <g fill="#0a0a0f"><path d="M0,620 C200,560 360,620 520,600 C720,560 900,640 1200,600 L1200,800 L0,800Z" opacity=".65"/></g>
+  <g fill="#0c0c12" filter="url(#soften)">
+    <path d="M80,610 h20 v30 h-20z"/><path d="M130,605 h18 v35 h-18z"/><path d="M200,612 h16 v28 h-16z"/>
+    <path d="M290,608 h20 v32 h-20z"/><path d="M360,612 h18 v28 h-18z"/>
+  </g>
+  <g fill="#0e0e15">
+    <path d="M0,680 C220,650 420,720 680,690 C900,660 1080,740 1200,720 L1200,800 L0,800Z"/>
+    <g>
+      <path d="M140,680 h28 v60 h-28z"/><rect x="152" y="660" width="4" height="20"/>
+      <rect x="145" y="668" width="22" height="4"/>
+      <rect x="260" y="675" width="10" height="65"/><rect x="280" y="675" width="10" height="65"/>
+      <rect x="260" y="690" width="30" height="4"/><rect x="260" y="710" width="30" height="4"/>
+    </g>
+  </g>
+  
+  <!-- 万圣节装饰层 - 在背景之后 -->
+  <g id="decorations" opacity="0.85">
+    <!-- 黑猫 - 从左往右走，头向右 -->
+    <g transform="translate(-100,640)">
+      <use href="#icon-cat" width="70" height="70" opacity="0.95">
+        <animateTransform attributeName="transform" type="translate" 
+          values="0 0; 250 0; 500 0; 750 0; 1000 0; 1250 0; 1400 0" 
+          dur="45s" repeatCount="indefinite"/>
+      </use>
+    </g>
+    
+    <!-- 幽灵1 - 从左往右飘，头向右 -->
+    <g transform="translate(-80,200)">
+      <use href="#icon-ghost" width="60" height="60">
+        <animateTransform attributeName="transform" type="translate" 
+          values="0 0; 350 -30; 700 25; 1050 -35; 1300 0" 
+          dur="35s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.4;0.8;0.4" dur="4s" repeatCount="indefinite"/>
+      </use>
+    </g>
+    
+    <!-- 幽灵2 - 从右往左飘，翻转让头向左 -->
+    <g transform="translate(1280,280) scale(-1,1)">
+      <use href="#icon-ghost" width="55" height="55">
+        <animateTransform attributeName="transform" type="translate" 
+          values="0 0; 350 35; 700 -25; 1050 30; 1350 0" 
+          dur="40s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.35;0.75;0.35" dur="5s" repeatCount="indefinite"/>
+      </use>
+    </g>
+    
+    <!-- 幽灵3 - 波浪形从左往右，头向右 -->
+    <g transform="translate(-80,140)">
+      <use href="#icon-ghost" width="52" height="52">
+        <animateTransform attributeName="transform" type="translate" 
+          values="0 0; 200 85; 400 25; 600 90; 800 35; 1000 80; 1200 30" 
+          dur="50s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.35;0.7;0.35" dur="6s" repeatCount="indefinite"/>
+      </use>
+    </g>
+    
+    <!-- 蜘蛛向上 - 左上角静态，远离边缘 -->
+    <g transform="translate(120,100)">
+      <use href="#icon-spider-up" width="42" height="42" opacity="0.75"/>
+    </g>
+    
+    <!-- 蜘蛛向下 - 被蛛丝拉住，轻微晃动，右上角 -->
+    <g transform="translate(1080,80)">
+      <!-- 蛛丝 -->
+      <line x1="20" y1="0" x2="20" y2="120" stroke="#b0a0d0" stroke-width="2" opacity="0.7">
+        <animate attributeName="x2" values="20;24;20;16;20" dur="8s" repeatCount="indefinite"/>
+      </line>
+      <!-- 蜘蛛 -->
+      <g transform="translate(0,80)">
+        <use href="#icon-spider-down" width="42" height="42" opacity="0.8">
+          <animateTransform attributeName="transform" type="translate" 
+            values="0 0; 5 12; -4 20; 0 0" 
+            dur="8s" repeatCount="indefinite"/>
+        </use>
+      </g>
+    </g>
+    
+    <!-- 骷髅头 - 地面上，静态，远离边缘 -->
+    <g transform="translate(900,640)">
+      <use href="#icon-skull" width="48" height="48" opacity="0.7"/>
+    </g>
+    <g transform="translate(200,635)">
+      <use href="#icon-skull" width="42" height="42" opacity="0.65"/>
+    </g>
+    
+    <!-- 糖果 - 散落在地面，远离边缘 -->
+    <g transform="translate(550,655)">
+      <use href="#icon-candy" width="35" height="35" opacity="0.75">
+        <animateTransform attributeName="transform" type="rotate" 
+          values="0 17.5 17.5; 20 17.5 17.5; 0 17.5 17.5; -20 17.5 17.5; 0 17.5 17.5" 
+          dur="6s" repeatCount="indefinite"/>
+      </use>
+    </g>
+    <g transform="translate(750,648)">
+      <use href="#icon-candy" width="30" height="30" opacity="0.7">
+        <animateTransform attributeName="transform" type="rotate" 
+          values="0 15 15; -18 15 15; 0 15 15" 
+          dur="5s" repeatCount="indefinite"/>
+      </use>
+    </g>
+    <g transform="translate(380,650)">
+      <use href="#icon-candy" width="28" height="28" opacity="0.65"/>
+    </g>
+  </g>
+  
+  <!-- 蝙蝠 -->
+  <g class="bat" transform="translate(260,160)" opacity=".85"><use href="#batPath" fill="#0a0a0f"/><animateTransform attributeName="transform" type="translate" values="260,160; 290,150; 320,170; 260,160" dur="6s" repeatCount="indefinite"/></g>
+  <g class="bat" transform="translate(720,120)" opacity=".75"><use href="#batPath" fill="#0a0a0f"/><animateTransform attributeName="transform" type="translate" values="720,120; 690,110; 660,130; 720,120" dur="7s" repeatCount="indefinite"/></g>
+
+  <!-- 头像（完整显示PNG，不裁剪、不拉伸变形；居中跟随鼠标） -->
+  <g id="player">
+    <!-- 小星图片 -->
+    <image id="playerImg"
+           href="小星.png"
+           width="64" height="64"
+           x="568" y="368"
+           preserveAspectRatio="xMidYMid meet" />
+  </g>
+
+  <!-- 阴影 -->
+  <ellipse id="shadow" cx="600" cy="430" rx="76" ry="18" fill="#000" opacity=".5"/>
+
+  <!-- 南瓜（精致版） -->
+  <g id="pumpkin" transform="translate(300,420)">
+    <g id="body">
+      <path d="M0,0 c -60,-40 -100,-40 -130,0 c -45,55 -45,130 0,185 c 30,35 70,35 130,0
+               c 60,40 100,40 130,0 c 45,-55 45,-130 0,-185 c -30,-35 -70,-35 -130,0 z"
+            fill="url(#pumpkinGrad)" stroke="#1a0d00" stroke-width="6"/>
+      <path d="M-40,-10 c-25,25 -25,90 0,140" stroke="var(--pumpkin-ribs)" stroke-width="5" opacity=".45" fill="none"/>
+      <path d="M40,-10 c25,25 25,90 0,140"  stroke="var(--pumpkin-ribs)" stroke-width="5" opacity=".45" fill="none"/>
+      <ellipse cx="-55" cy="40" rx="12" ry="26" fill="#fff" opacity=".14"/>
+      <ellipse cx="35" cy="70" rx="8" ry="16"  fill="#fff" opacity=".08"/>
+      <path d="M-8,-58 c-6,-14 8,-26 22,-20 c-8,10 -6,18 -4,26" stroke="#1a0d00" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <path d="M22,-64 c18,6 26,12 36,22 c-12,0 -20,-2 -30,-6" stroke="var(--stem)" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <path d="M44,-40 c14,-10 30,-8 34,2 c-6,8 -22,12 -34,-2z" fill="var(--leaf)" stroke="#204d21" stroke-width="2"/>
+    </g>
+    <g id="eyes" transform="translate(0,50)">
+      <path d="M-55,0 l35,-22 l0,44 z" fill="var(--cut)"/>
+      <path d="M55,0 l-35,-22 l0,44 z"  fill="var(--cut)"/>
+      <g filter="url(#glow)" opacity=".9">
+        <circle cx="-42" cy="8" r="5" fill="url(#carveGlow)"/>
+        <circle cx="42" cy="8"  r="5" fill="url(#carveGlow)"/>
+      </g>
+    </g>
+    <g id="mouth" transform="translate(0,118)">
+      <g id="jaw-upper">
+        <path d="M-78,0 Q0,-22 78,0 l-10,22 l-18,-16 l-14,20 l-18,-16 l-14,20 l-18,-16 l-10,22 z" fill="var(--cut)"/>
+        <ellipse cx="0" cy="-4" rx="46" ry="8" fill="url(#carveGlow)" opacity=".38" filter="url(#glow)"/>
+      </g>
+      <g id="jaw-lower" transform="translate(0,9)">
+        <path d="M-78,0 Q0,22 78,0 l-10,-22 l-18,16 l-14,-20 l-18,16 l-14,-20 l-18,16 l-10,-22 z" fill="var(--cut)"/>
+        <ellipse cx="0" cy="6" rx="42" ry="7" fill="url(#carveGlow)" opacity=".38" filter="url(#glow)"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- 速度轨迹 -->
+  <g id="trail" opacity="0">
+    <path id="trailPath" d="M0,0 L0,0" stroke="#FF9A2E" stroke-width="7" stroke-linecap="round" opacity=".55" />
+  </g>
+
+  <!-- 碰撞判定圈（调试用） -->
+  <circle id="debugCircle" cx="0" cy="0" r="120" fill="none" stroke="#FF0000" stroke-width="2" opacity="0.5" style="display:none;"/>
+</svg>
+
+<!-- 状态提示框 -->
+<div id="statusOverlay"></div>
+
+<!-- 音效控制按钮 -->
+<button id="soundToggle" title="点击启动/关闭音效">🔊</button>
+
+<script>
+(() => {
+  // ====== 可调参数 ======
+  const SPEED_BASE = 4.0;
+  const SPEED_AGGRO = 7.2;
+  const MOUTH_IDLE = 6;
+  const MOUTH_CHOMP = 38;
+  const CHOMP_DISTANCE = 90;
+  const EAT_DISTANCE = 30;
+  const SCALE = 0.60;     // 南瓜缩小
+  const LERP = 0.16;
+  const FLICKER_POWER = 0.25;
+  const CAUGHT_DURATION = 1.5;  // 被咬住多久后停止追逐（秒）
+
+  // 头像显示与碰撞
+  const TARGET_MAX_SIDE = 96;     // 压缩尺寸：图片最长边压到此值，能看全
+  const COLLISION_RADIUS = 120;   // 碰撞检测半径（像素）- 增大到120让判定更容易
+  const SHOW_DEBUG_CIRCLE = false; // 是否显示碰撞判定圈（调试用）
+
+  // ====== DOM ======
+  const svg = document.getElementById('stage');
+  const pumpkin = document.getElementById('pumpkin');
+  const jawLower = document.getElementById('jaw-lower');
+  const shadow = document.getElementById('shadow');
+  const trail = document.getElementById('trail');
+  const trailPath = document.getElementById('trailPath');
+  const playerImg = document.getElementById('playerImg');
+  const playerGroup = document.getElementById('player');
+  const statusOverlay = document.getElementById('statusOverlay');
+  const debugCircle = document.getElementById('debugCircle');
+  
+  // 显示/隐藏调试圈
+  if (SHOW_DEBUG_CIRCLE) {
+    debugCircle.style.display = 'block';
+  }
+
+  // 状态
+  let target = { x: 600, y: 400 };
+  let pos = { x: 300, y: 420 };
+  let angle = 0, flip = 1, jaw = MOUTH_IDLE, chompPhase = 0;
+  let lastPos = { x: pos.x, y: pos.y };
+  let isCaught = false;           // 是否被追到
+  let caughtStartTime = null;     // 被追到的开始时间
+  let gameOver = false;           // 游戏结束标志
+  
+  // ====== 音效系统 ======
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  let bgMusicGain = null;
+  let chaseGain = null;
+  let lastChaseState = null; // 'normal', 'close', 'caught'
+  
+  // 创建俏皮惊悚背景音效（木琴风格）
+  function createBgMusic() {
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.05;
+    gain.connect(audioCtx.destination);
+    
+    // A小调音阶 (A, B, C, D, E, F, G)
+    const notes = [220, 246.94, 261.63, 293.66, 329.63, 349.23, 392]; // Hz
+    
+    function playNote() {
+      if (gameOver) return;
+      
+      const osc = audioCtx.createOscillator();
+      const noteGain = audioCtx.createGain();
+      
+      // 木琴音色：正弦波+方波混合
+      osc.type = 'sine';
+      osc.frequency.value = notes[Math.floor(Math.random() * notes.length)];
+      
+      // 快速衰减模拟打击乐器
+      noteGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      noteGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      
+      osc.connect(noteGain);
+      noteGain.connect(gain);
+      
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.3);
+      
+      // 随机间隔 (100-120 BPM)
+      setTimeout(playNote, 500 + Math.random() * 200);
+    }
+    
+    playNote();
+    return gain;
+  }
+  
+  // 接近时的紧张音效（拨弦小提琴+半音上行）
+  function createChaseSound(intensity) {
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0;
+    gain.connect(audioCtx.destination);
+    
+    // 半音上行序列
+    const bassline = [110, 116.54, 123.47, 130.81]; // A2, A#2, B2, C3
+    let currentNote = 0;
+    
+    function playPulse() {
+      if (gameOver) return;
+      
+      const osc = audioCtx.createOscillator();
+      const pulseGain = audioCtx.createGain();
+      
+      // 拨弦效果：快速起音，快速衰减
+      osc.type = 'sawtooth';
+      osc.frequency.value = bassline[currentNote % bassline.length];
+      
+      pulseGain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+      pulseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+      
+      osc.connect(pulseGain);
+      pulseGain.connect(gain);
+      
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.15);
+      
+      currentNote++;
+      
+      // 根据强度调整速度
+      const interval = intensity === 'close' ? 250 : 150; // 更接近=更快
+      setTimeout(playPulse, interval);
+    }
+    
+    playPulse();
+    return gain;
+  }
+  
+  // 小军鼓滚奏（被咬住时）
+  function playSnareDrum() {
+    const duration = 0.1;
+    const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * duration, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    // 生成白噪声（军鼓音色）
+    for (let i = 0; i < buffer.length; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    
+    const noise = audioCtx.createBufferSource();
+    const noiseGain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    
+    noise.buffer = buffer;
+    filter.type = 'highpass';
+    filter.frequency.value = 1000;
+    
+    noiseGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+    
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(audioCtx.destination);
+    
+    noise.start(audioCtx.currentTime);
+    noise.stop(audioCtx.currentTime + duration);
+  }
+  
+  // 减七和弦音效（紧张时刻）
+  function playDiminishedChord() {
+    const frequencies = [220, 261.63, 311.13, 369.99]; // A, C, Eb, F#
+    
+    frequencies.forEach(freq => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+      
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.5);
+    });
+  }
+  
+  // 更新音效状态
+  function updateSound(state, distance) {
+    if (state !== lastChaseState) {
+      lastChaseState = state;
+      
+      // 清除旧的追击音效
+      if (chaseGain) {
+        chaseGain.gain.setValueAtTime(chaseGain.gain.value, audioCtx.currentTime);
+        chaseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      }
+      
+      if (state === 'close') {
+        // 接近时：增加紧张音效
+        chaseGain = createChaseSound('close');
+        chaseGain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+        chaseGain.gain.exponentialRampToValueAtTime(0.15, audioCtx.currentTime + 0.2);
+      } else if (state === 'caught') {
+        // 被咬住：加强音效+减七和弦
+        chaseGain = createChaseSound('caught');
+        chaseGain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+        chaseGain.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + 0.2);
+        playDiminishedChord();
+      }
+    }
+    
+    // 被咬住时的小军鼓滚奏
+    if (state === 'caught' && Math.random() < 0.3) {
+      playSnareDrum();
+    }
+  }
+  
+  // 启动音效
+  let audioStarted = false;
+  let audioMuted = false;
+  const soundToggleBtn = document.getElementById('soundToggle');
+  
+  function startAudio() {
+    if (!audioStarted) {
+      // 尝试启动音频上下文
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      bgMusicGain = createBgMusic();
+      audioStarted = true;
+      console.log('🎵 音效已启动！点击右下角按钮可关闭');
+    }
+  }
+  
+  function toggleSound() {
+    // 确保音效已启动
+    if (!audioStarted) {
+      startAudio();
+    }
+    
+    // 切换静音状态
+    audioMuted = !audioMuted;
+    if (audioMuted) {
+      audioCtx.suspend();
+      soundToggleBtn.textContent = '🔇';
+      soundToggleBtn.classList.add('muted');
+    } else {
+      audioCtx.resume();
+      soundToggleBtn.textContent = '🔊';
+      soundToggleBtn.classList.remove('muted');
+    }
+  }
+  
+  // 音效按钮点击事件
+  soundToggleBtn.addEventListener('click', toggleSound);
+  
+  // 鼠标移动立即启动音效（优先级最高）
+  let mouseMoveListener = function(e) {
+    if (!audioStarted && !gameOver) {
+      startAudio();
+    }
+  };
+  
+  // 监听所有可能的用户交互
+  window.addEventListener('mousemove', mouseMoveListener, { once: true, passive: true });
+  window.addEventListener('touchstart', mouseMoveListener, { once: true, passive: true });
+  window.addEventListener('click', mouseMoveListener, { once: true, passive: true });
+  
+  // 页面加载后尝试立即启动（部分浏览器允许）
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      if (!audioStarted && !gameOver) {
+        startAudio();
+      }
+    }, 100);
+  });
+
+  // 加载图片以获取尺寸
+  const imgEl = new Image();
+  imgEl.src = '小星.png';
+  imgEl.onload = () => {
+    // 初始化显示尺寸（按最长边压缩）
+    updateDisplaySize(1);
+    // 放到初始位置
+    placeAvatar(target.x, target.y);
+  };
+
+  // 当前显示尺寸（按等比缩放）
+  let disp = { w: TARGET_MAX_SIDE, h: TARGET_MAX_SIDE, scale: 1 };
+
+  function updateDisplaySize(extraScale){
+    const baseSize = TARGET_MAX_SIDE;
+    disp.w = baseSize * extraScale;
+    disp.h = baseSize * extraScale;
+    disp.scale = extraScale;
+    playerImg.setAttribute('width', disp.w);
+    playerImg.setAttribute('height', disp.h);
+    // 保证完整显示且不变形
+    playerImg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  }
+
+  function placeAvatar(cx, cy){
+    playerImg.setAttribute('x', (cx - disp.w/2));
+    playerImg.setAttribute('y', (cy - disp.h/2));
+  }
+
+  function clientToSvg(x, y) {
+    const pt = svg.createSVGPoint();
+    pt.x = x; pt.y = y;
+    const m = svg.getScreenCTM().inverse();
+    return pt.matrixTransform(m);
+  }
+
+  // 跟鼠标移动（用整张PNG）
+  window.addEventListener('mousemove', e => {
+    if (gameOver) return; // 游戏结束后不再跟随
+    const p = clientToSvg(e.clientX, e.clientY);
+    target.x = p.x; target.y = p.y;
+    placeAvatar(target.x, target.y);
+  }, { passive:true });
+
+  window.addEventListener('touchmove', e => {
+    if (gameOver) return; // 游戏结束后不再跟随
+    const t = e.touches[0];
+    const p = clientToSvg(t.clientX, t.clientY);
+    target.x = p.x; target.y = p.y;
+    placeAvatar(target.x, target.y);
+  }, { passive:true });
+
+  // 判定"咬到" - 使用简单的圆形碰撞检测
+  function isBitten(mouthPoint){
+    // 计算南瓜嘴部中心到小星中心的距离
+    const dx = target.x - mouthPoint.x;
+    const dy = target.y - mouthPoint.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // 调试信息（可选）
+    // console.log('距离:', distance.toFixed(1), '碰撞半径:', COLLISION_RADIUS);
+    
+    // 如果距离小于碰撞半径，判定为被咬到
+    return distance < COLLISION_RADIUS;
+  }
+
+  // 主循环
+  function tick(){
+    // 如果游戏已结束，不再处理游戏逻辑
+    if (gameOver) {
+      requestAnimationFrame(tick);
+      return;
+    }
+
+    const dx = target.x - pos.x, dy = target.y - pos.y;
+    const dist = Math.hypot(dx, dy) || 1e-6;
+
+    // 嘴部"咬点"（近似）
+    const sPumpForMouth = SCALE * (1 + (SPEED_AGGRO - SPEED_BASE)*0.02);
+    const mouthPoint = { x: pos.x, y: pos.y + 118*sPumpForMouth };
+
+    // 碰撞检测（只在游戏未结束时检测）- 使用简化的圆形碰撞
+    const bitten = isBitten(mouthPoint);
+
+    // 判断音效状态
+    let soundState = 'normal';
+    if (bitten) {
+      soundState = 'caught';
+    } else if (dist < CHOMP_DISTANCE * 1.6) {
+      soundState = 'close';
+    }
+    updateSound(soundState, dist);
+
+    // 处理被追到的状态
+    if (bitten) {
+      // 如果刚被咬住，记录开始时间
+      if (!isCaught) {
+        isCaught = true;
+        caughtStartTime = performance.now();
+        console.log('🔥 开始被咬住！');
+      }
+      
+      // 计算已被咬住的时间
+      const elapsedTime = (performance.now() - caughtStartTime) / 1000;
+      const remainingTime = Math.max(0, CAUGHT_DURATION - elapsedTime);
+      
+      // 显示倒计时提示
+      statusOverlay.textContent = `⚠️ 被咬住了！${remainingTime.toFixed(1)}秒后被吃掉！`;
+      statusOverlay.className = 'show';
+      
+      // 检查是否达到游戏结束条件
+      if (elapsedTime >= CAUGHT_DURATION) {
+        console.log('💀 游戏结束！被咬住时间:', elapsedTime.toFixed(2), '秒');
+        gameOver = true;
+        isCaught = true;
+        
+        // 立即更新UI
+        statusOverlay.textContent = '🎃 游戏结束！小星被吃掉了！';
+        statusOverlay.className = 'show gameover';
+        
+        // 恢复光标（多种方式确保生效）
+        svg.style.cursor = 'default';
+        document.body.style.cursor = 'default';
+        
+        // 隐藏跟随鼠标的图片（多种方式确保隐藏）
+        playerGroup.style.opacity = '0';
+        playerGroup.style.visibility = 'hidden';
+        playerGroup.style.transition = 'opacity 0.5s, visibility 0.5s';
+        
+        // 延迟彻底隐藏，确保过渡动画完成
+        setTimeout(() => {
+          playerGroup.style.display = 'none';
+        }, 500);
+        
+        console.log('✅ 游戏结束状态已设置');
+        return; // 立即返回，不再执行后续逻辑
+      }
+    } else {
+      // 没有被咬住
+      if (isCaught) {
+        // 如果之前被咬住了，现在逃脱了
+        console.log('💨 逃脱了！被咬时间:', ((performance.now() - caughtStartTime) / 1000).toFixed(2), '秒');
+        isCaught = false;
+        caughtStartTime = null;
+      }
+      // 隐藏提示
+      statusOverlay.className = '';
+    }
+
+    // 南瓜追逐逻辑
+    const spd = dist < CHOMP_DISTANCE * 1.6 ? SPEED_AGGRO : SPEED_BASE;
+    const vx = (dx/dist)*spd, vy = (dy/dist)*spd;
+    pos.x += vx; pos.y += vy;
+
+    const desired = Math.atan2(dy, dx);
+    const d = (((desired - angle) + Math.PI*3) % (Math.PI*2)) - Math.PI;
+    angle += d * LERP;
+    flip = (Math.cos(angle) >= 0) ? 1 : -1;
+
+    // 嘴部动画
+    if (dist < CHOMP_DISTANCE) {
+      chompPhase += 0.3;
+      const wave = (Math.sin(chompPhase) * 0.5 + 0.5);
+      jaw = MOUTH_IDLE + (MOUTH_CHOMP - MOUTH_IDLE) * (0.55 + 0.45*wave);
+      trail.setAttribute('opacity', 0.35 + 0.25*wave);
+      const flick = 0.6 + FLICKER_POWER * (Math.random()*0.7 + Math.sin(performance.now()/90)*0.3);
+      for(const el of document.querySelectorAll('#mouth ellipse, #eyes circle')) {
+        el.setAttribute('opacity', (0.28 + 0.4*flick).toFixed(2));
+      }
+    } else {
+      chompPhase += 0.08;
+      jaw = MOUTH_IDLE + Math.sin(chompPhase)*2;
+      trail.setAttribute('opacity', 0);
+    }
+
+    jawLower.setAttribute('transform', `translate(0,9) rotate(${jaw}, 0, 0)`);
+
+    const bob = Math.sin(performance.now()/260) * 4;
+    const rotDeg = angle * 180 / Math.PI * 0.1;
+    const sPump = SCALE * (1 + (spd - SPEED_BASE)*0.02);
+    pumpkin.setAttribute('transform', `translate(${pos.x},${pos.y + bob}) rotate(${rotDeg}) scale(${flip*sPump}, ${sPump})`);
+
+    shadow.setAttribute('cx', pos.x);
+    shadow.setAttribute('cy', pos.y + 160);
+    shadow.setAttribute('rx', 76 * sPump);
+    shadow.setAttribute('ry', 18 * sPump);
+
+    trailPath.setAttribute('d', `M${lastPos.x},${lastPos.y} L${pos.x},${pos.y}`);
+    lastPos.x = pos.x; lastPos.y = pos.y;
+
+    // 更新调试圈位置（如果开启）
+    if (SHOW_DEBUG_CIRCLE) {
+      debugCircle.setAttribute('cx', mouthPoint.x);
+      debugCircle.setAttribute('cy', mouthPoint.y);
+      debugCircle.setAttribute('r', COLLISION_RADIUS);
+      // 被咬住时变红，否则变黄
+      debugCircle.setAttribute('stroke', bitten ? '#FF0000' : '#FFFF00');
+    }
+
+    // 碰撞反馈（缩放轻微"受击"）
+    if (bitten) {
+      const t = (Math.sin(performance.now()/60) * 0.5 + 0.5); // 0..1
+      updateDisplaySize(1 - t*0.25);
+      placeAvatar(target.x, target.y);
+    } else {
+      updateDisplaySize(1);
+      placeAvatar(target.x, target.y);
+    }
+
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
